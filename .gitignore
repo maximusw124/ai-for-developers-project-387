@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+dist-ssr/
+build/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Coverage / test output
+coverage/
+.nyc_output/
+
+# Generated API artifacts (rebuilt from contract/openapi/openapi.yaml)
+backend/src/api/generated/
+frontend/src/api/generated/
+
+# Local SQLite data
+backend/data/
+
+# Playwright
+.e2e/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Caches
+.cache/
+.vite/
+.turbo/
+.parcel-cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Misc
+*.local

@@ -1,0 +1,671 @@
+openapi: 3.1.0
+info:
+  title: Booking API
+  version: 0.0.0
+tags: []
+paths:
+  /admin/bookings/upcoming:
+    get:
+      operationId: listUpcomingBookings
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UpcomingBooking'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/meeting-types:
+    get:
+      operationId: listAdminMeetingTypes
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminMeetingType'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: createMeetingType
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMeetingType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMeetingTypeRequest'
+  /admin/meeting-types/{id}:
+    get:
+      operationId: getAdminMeetingType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMeetingType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateMeetingType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMeetingType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMeetingTypeRequest'
+  /admin/meeting-types/{id}/archive:
+    post:
+      operationId: archiveMeetingType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMeetingType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/meeting-types/{id}/restore:
+    post:
+      operationId: restoreMeetingType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMeetingType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/owner:
+    get:
+      operationId: getOwner
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateOwner
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOwnerRequest'
+  /bookings:
+    post:
+      operationId: createBooking
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingConfirmation'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+  /meeting-types:
+    get:
+      operationId: listPublicMeetingTypes
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicMeetingType'
+  /meeting-types/{id}:
+    get:
+      operationId: getPublicMeetingType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicMeetingType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /meeting-types/{id}/availability:
+    get:
+      operationId: getAvailability
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Availability'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    AdminMeetingType:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - durationMin
+        - archivedAtMs
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        description:
+          type: string
+        durationMin:
+          type: integer
+          format: int32
+        archivedAtMs:
+          anyOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+    Availability:
+      type: object
+      required:
+        - meetingType
+        - days
+      properties:
+        meetingType:
+          $ref: '#/components/schemas/PublicMeetingType'
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayAvailability'
+    BookingConfirmation:
+      type: object
+      required:
+        - meetingType
+        - start
+        - end
+        - durationMin
+        - ownerName
+        - guestName
+        - guestEmail
+        - createdAt
+      properties:
+        meetingType:
+          $ref: '#/components/schemas/PublicMeetingType'
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        durationMin:
+          type: integer
+          format: int32
+        ownerName:
+          type: string
+        guestName:
+          type: string
+        guestEmail:
+          type: string
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    CreateBookingRequest:
+      type: object
+      required:
+        - meetingTypeId
+        - start
+        - guestName
+        - guestEmail
+      properties:
+        meetingTypeId:
+          type: integer
+          format: int32
+        start:
+          type: string
+          format: date-time
+        guestName:
+          type: string
+        guestEmail:
+          type: string
+        comment:
+          type: string
+    CreateMeetingTypeRequest:
+      type: object
+      required:
+        - name
+        - durationMin
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        durationMin:
+          type: integer
+          format: int32
+    DayAvailability:
+      type: object
+      required:
+        - date
+        - slots
+      properties:
+        date:
+          type: string
+          format: date
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    Owner:
+      type: object
+      required:
+        - displayName
+      properties:
+        displayName:
+          type: string
+    PublicMeetingType:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - durationMin
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        description:
+          type: string
+        durationMin:
+          type: integer
+          format: int32
+    Slot:
+      type: object
+      required:
+        - start
+        - end
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+    UpcomingBooking:
+      type: object
+      required:
+        - id
+        - start
+        - end
+        - guestName
+        - guestEmail
+        - comment
+        - createdAt
+        - meetingType
+      properties:
+        id:
+          type: integer
+          format: int32
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        guestName:
+          type: string
+        guestEmail:
+          type: string
+        comment:
+          anyOf:
+            - type: string
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        meetingType:
+          $ref: '#/components/schemas/UpcomingMeetingType'
+    UpcomingMeetingType:
+      type: object
+      required:
+        - id
+        - name
+        - durationMin
+        - archived
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        durationMin:
+          type: integer
+          format: int32
+        archived:
+          type: boolean
+    UpdateMeetingTypeRequest:
+      type: object
+      required:
+        - name
+        - durationMin
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        durationMin:
+          type: integer
+          format: int32
+    UpdateOwnerRequest:
+      type: object
+      required:
+        - displayName
+      properties:
+        displayName:
+          type: string
+servers:
+  - url: http://localhost:3000
+    description: Local development
+    variables: {}

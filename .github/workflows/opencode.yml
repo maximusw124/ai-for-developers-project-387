@@ -1,0 +1,69 @@
+name: opencode
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: opencode-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    if: >-
+      (github.event.comment.author_association == 'OWNER' ||
+       github.event.comment.author_association == 'MEMBER' ||
+       github.event.comment.author_association == 'COLLABORATOR') &&
+      github.event.comment.user.type != 'Bot' &&
+      !endsWith(github.event.comment.user.login, '[bot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      call: ${{ steps.check.outputs.call }}
+    steps:
+      - name: Check command and PR source
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.comment.body || ''
+            const called = /(^|\s)\/(oc|opencode)(?![a-z0-9_-])/i.test(body)
+
+            let trustedSource = true
+            if (context.payload.issue && context.payload.issue.pull_request) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number,
+              })
+              trustedSource = pr.head.repo?.full_name === `${context.repo.owner}/${context.repo.repo}`
+            }
+
+            core.setOutput('call', called && trustedSource ? 'true' : 'false')
+
+  opencode:
+    needs: guard
+    if: needs.guard.outputs.call == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run OpenCode
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        with:
+          model: "opencode/big-pickle"
+          mentions: "/oc,/opencode"
+          share: false

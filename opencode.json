@@ -1,5 +1,14 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/big-pickle",
+  "skills": ["./.agents/skills"],
+  "instructions": [
+    "AGENTS.md",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/skills.md",
+    "docs/agents/triage-labels.md",
+    "docs/agents/domain.md"
+  ],
   "mcp": {
     "render": {
       "type": "remote",

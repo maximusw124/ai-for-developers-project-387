@@ -1,57 +1,163 @@
 name: opencode
 
+run-name: "opencode ${{ github.event.issue.pull_request && format('PR #{0}', github.event.issue.number) || github.event.pull_request && format('PR #{0}', github.event.pull_request.number) || 'issue' }} c${{ github.event.comment.id }} a${{ github.run_attempt }}"
+
 on:
   issue_comment:
+    types: [created]
+  pull_request_review_comment:
     types: [created]
 
 permissions:
   contents: read
-  id-token: write
+  actions: read
   issues: write
   pull-requests: write
+  id-token: write
 
 concurrency:
-  group: opencode-${{ github.event.issue.number }}
+  group: opencode-${{ github.event.issue.number || github.event.pull_request.number || github.event.comment.id }}
   cancel-in-progress: false
 
 jobs:
   guard:
-    if: >-
-      (github.event.comment.author_association == 'OWNER' ||
-       github.event.comment.author_association == 'MEMBER' ||
-       github.event.comment.author_association == 'COLLABORATOR') &&
-      github.event.comment.user.type != 'Bot' &&
-      !endsWith(github.event.comment.user.login, '[bot]')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+      pull-requests: read
     outputs:
-      call: ${{ steps.check.outputs.call }}
+      allowed: ${{ steps.budget.outputs.allowed }}
+      reason: ${{ steps.budget.outputs.reason }}
+      pr: ${{ steps.budget.outputs.pr }}
+      sha: ${{ steps.budget.outputs.sha }}
+      used: ${{ steps.budget.outputs.used }}
+      limit: ${{ steps.budget.outputs.limit }}
     steps:
-      - name: Check command and PR source
-        id: check
+      - name: Check command, trust and budget before the model
+        id: budget
         uses: actions/github-script@v7
+        env:
+          AGENT_RUN_LIMIT: ${{ vars.AGENT_RUN_LIMIT || 3 }}
         with:
           script: |
-            const body = context.payload.comment.body || ''
+            const max = Math.max(1, Number(process.env.AGENT_RUN_LIMIT) || 3)
+            const comment = context.payload.comment || {}
+            const body = comment.body || ''
             const called = /(^|\s)\/(oc|opencode)(?![a-z0-9_-])/i.test(body)
+            const authorAssociation = comment.author_association
+            const login = String(comment.user?.login || '')
+            const trustedAuthor = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(authorAssociation) &&
+              comment.user?.type !== 'Bot' && !login.endsWith('[bot]')
 
+            core.setOutput('limit', String(max))
+            core.setOutput('allowed', 'false')
+            core.setOutput('reason', 'not_allowed')
+            core.setOutput('pr', '')
+            core.setOutput('sha', '')
+            core.setOutput('used', '0')
+
+            if (!called || !trustedAuthor) return
+
+            let prNumber = ''
+            let headSha = process.env.GITHUB_SHA || ''
             let trustedSource = true
-            if (context.payload.issue && context.payload.issue.pull_request) {
+
+            if (context.eventName === 'issue_comment' && context.payload.issue?.pull_request) {
+              prNumber = context.payload.issue.number
               const { data: pr } = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: context.payload.issue.number,
+                pull_number: prNumber,
               })
-              trustedSource = pr.head.repo?.full_name === `${context.repo.owner}/${context.repo.repo}`
+              headSha = pr.head.sha
+              trustedSource = pr.head.repo?.full_name === `${context.repo.owner}/${context.repo.repo}` &&
+                pr.head.repo?.fork !== true
+            } else if (context.eventName === 'pull_request_review_comment') {
+              const pr = context.payload.pull_request || {}
+              prNumber = pr.number
+              headSha = pr.head?.sha || headSha
+              trustedSource = pr.head?.repo?.full_name === `${context.repo.owner}/${context.repo.repo}` &&
+                pr.head?.repo?.fork !== true
             }
 
-            core.setOutput('call', called && trustedSource ? 'true' : 'false')
+            core.setOutput('pr', prNumber ? String(prNumber) : '')
+            core.setOutput('sha', headSha)
 
-  opencode:
+            if (!trustedSource) {
+              core.setOutput('reason', 'untrusted_source')
+              return
+            }
+
+            if (!prNumber) {
+              core.setOutput('allowed', 'true')
+              core.setOutput('reason', 'issue_request')
+              return
+            }
+
+            try {
+              const currentRunId = Number(process.env.GITHUB_RUN_ID)
+              const currentAttempt = Number(process.env.GITHUB_RUN_ATTEMPT) || 1
+              const runs = (await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'opencode.yml',
+                per_page: 100,
+              })).filter((run) => ['issue_comment', 'pull_request_review_comment'].includes(run.event)).slice(0, 500)
+
+              let used = 0
+              countRuns: for (const run of runs) {
+                const title = run.display_title || run.name || ''
+                const marked = title.match(/PR #(\d+)/)
+                const fromPullRequests = (run.pull_requests || []).map((pr) => pr.number).find((n) => n === prNumber)
+                const runPr = marked ? Number(marked[1]) : fromPullRequests
+                if (Number(runPr) !== Number(prNumber)) continue
+
+                const attempts = run.run_attempt || 1
+                for (let attempt = 1; attempt <= attempts; attempt++) {
+                  if (run.id === currentRunId && attempt === currentAttempt) continue
+                  const { data } = await github.rest.actions.listJobsForWorkflowRunAttempt({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    run_id: run.id,
+                    attempt_number: attempt,
+                    per_page: 100,
+                  })
+                  const admitted = data.jobs.some((job) =>
+                    ['run_agent', 'opencode'].includes(job.name) && job.conclusion !== 'skipped'
+                  )
+                  if (admitted) {
+                    used++
+                    if (used >= max) break countRuns
+                  }
+                }
+              }
+
+              core.setOutput('used', String(used))
+              if (used >= max) {
+                core.setOutput('reason', 'limit_exhausted')
+                return
+              }
+
+              core.setOutput('allowed', 'true')
+              core.setOutput('reason', 'within_budget')
+            } catch (error) {
+              core.setOutput('reason', 'infra')
+              core.warning(`Budget check failed: ${error.message}`)
+            }
+
+  run_agent:
     needs: guard
-    if: needs.guard.outputs.call == 'true'
+    if: needs.guard.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -67,3 +173,116 @@ jobs:
           model: "opencode/big-pickle"
           mentions: "/oc,/opencode"
           share: false
+
+  report:
+    needs: [guard, run_agent]
+    if: >-
+      always() &&
+      (needs.guard.result == 'failure' ||
+       (needs.guard.outputs.pr != '' && needs.guard.outputs.allowed != 'true' &&
+        (needs.guard.outputs.reason == 'limit_exhausted' || needs.guard.outputs.reason == 'infra')) ||
+       (needs.guard.outputs.allowed == 'true' && needs.run_agent.result != 'success'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Classify outcome without a model
+        id: classify
+        uses: actions/github-script@v7
+        env:
+          GUARD_RESULT: ${{ needs.guard.result }}
+          GUARD_ALLOWED: ${{ needs.guard.outputs.allowed }}
+          GUARD_REASON: ${{ needs.guard.outputs.reason }}
+          GUARD_PR: ${{ needs.guard.outputs.pr }}
+          GUARD_SHA: ${{ needs.guard.outputs.sha }}
+          GUARD_USED: ${{ needs.guard.outputs.used }}
+          GUARD_LIMIT: ${{ needs.guard.outputs.limit }}
+          AGENT_RESULT: ${{ needs.run_agent.result }}
+          PAYLOAD_PR: ${{ github.event.pull_request.number }}
+          PAYLOAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PAYLOAD_ISSUE: ${{ github.event.issue.number }}
+          PAYLOAD_ISSUE_IS_PR: ${{ github.event.issue.pull_request != null }}
+        with:
+          script: |
+            let reason = ''
+            if (process.env.GUARD_RESULT === 'failure') {
+              reason = 'infra'
+            } else if (process.env.GUARD_ALLOWED !== 'true') {
+              reason = ['limit_exhausted', 'infra'].includes(process.env.GUARD_REASON) ? process.env.GUARD_REASON : ''
+            } else if (process.env.AGENT_RESULT !== 'success') {
+              const { data } = await github.rest.actions.listJobsForWorkflowRunAttempt({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: Number(process.env.GITHUB_RUN_ID),
+                attempt_number: Number(process.env.GITHUB_RUN_ATTEMPT) || 1,
+                per_page: 100,
+              })
+              const job = data.jobs.find((item) => item.name === 'run_agent')
+              if (job?.conclusion === 'timed_out') {
+                reason = 'timeout'
+              } else if (job?.conclusion === 'cancelled') {
+                reason = 'infra'
+              } else {
+                const failedSteps = (job?.steps || []).filter((step) => step.conclusion === 'failure').map((step) => step.name)
+                reason = failedSteps.some((name) => /opencode/i.test(name)) ? 'agent_failed' : 'infra'
+              }
+            }
+
+            if (!reason) {
+              core.setOutput('publish', 'false')
+              return
+            }
+
+            const issuePr = process.env.PAYLOAD_ISSUE_IS_PR === 'true' ? process.env.PAYLOAD_ISSUE : ''
+            let pr = process.env.GUARD_PR || process.env.PAYLOAD_PR || issuePr
+            if (!pr) {
+              core.setOutput('publish', 'false')
+              return
+            }
+            let sha = process.env.GUARD_SHA || process.env.PAYLOAD_SHA || ''
+            if (pr && !sha) {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: Number(pr),
+              })
+              sha = data.head.sha
+            }
+
+            const explanations = {
+              limit_exhausted: `Лимит запусков агента по запросам человека на PR исчерпан (${process.env.GUARD_USED}/${process.env.GUARD_LIMIT}). Модель не вызывалась.`,
+              timeout: 'Запуск агента завершился по таймауту.',
+              infra: 'Сбой инфраструктуры или runner до вызова модели либо во время запуска.',
+              agent_failed: 'Агент завершился с ошибкой.',
+            }
+            const server = process.env.GITHUB_SERVER_URL || 'https://github.com'
+            const logs = `${server}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/${process.env.GITHUB_RUN_ATTEMPT || 1}`
+            const body = [
+              '> *This was generated by AI during automated review.*',
+              '',
+              '**Статус: нужен человек.**',
+              '',
+              `Причина: \`${reason}\`. ${explanations[reason]}`,
+              '',
+              `Последний SHA: \`${sha || 'не удалось определить'}\`.`,
+              '',
+              `Логи запуска: ${logs}`,
+            ].join('\n')
+
+            core.setOutput('publish', 'true')
+            core.setOutput('pr', pr)
+            core.setOutput('body', body)
+
+      - name: Publish status comment
+        if: steps.classify.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.classify.outputs.pr }}
+          BODY: ${{ steps.classify.outputs.body }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$BODY" | gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -

@@ -658,6 +658,11 @@ export function AdminPage() {
                                 end: booking.end,
                               })}
                             </span>
+                            {booking.topic?.trim() ? (
+                              <span className="badge booking-card__topic">
+                                {booking.topic}
+                              </span>
+                            ) : null}
                             {isOngoing(booking) ? (
                               <span className="badge status-badge status-badge--now">
                                 Сейчас

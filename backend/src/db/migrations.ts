@@ -73,4 +73,11 @@ export const migrations: Migration[] = [
       END;
     `,
   },
+  {
+    version: 4,
+    name: "add_topic_to_bookings",
+    sql: `
+      ALTER TABLE bookings ADD COLUMN topic TEXT NULL;
+    `,
+  },
 ];

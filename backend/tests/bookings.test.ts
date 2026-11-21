@@ -229,4 +229,108 @@ describe("Create booking API", () => {
     expect(response.statusCode).toBe(201);
     expect(response.json().comment).toBeUndefined();
   });
+
+  it("accepts, trims, stores, and returns topic in confirmation", async () => {
+    const { app, db } = track(setup());
+    const id = insertType(db, "With topic");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/bookings",
+      payload: { ...bookingPayload(id), topic: "  План запуска  " },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().topic).toBe("План запуска");
+
+    const stored = db
+      .prepare("SELECT topic, comment FROM bookings WHERE meeting_type_id = ?")
+      .get(id) as { topic: string | null; comment: string | null };
+    expect(stored).toEqual({ topic: "План запуска", comment: "Вопрос" });
+  });
+
+  it("treats empty, whitespace-only, or omitted topic as no topic", async () => {
+    const { app, db } = track(setup());
+    const starts = [
+      "2026-11-16T06:00:00.000Z",
+      "2026-11-16T06:30:00.000Z",
+      "2026-11-16T07:00:00.000Z",
+    ];
+
+    for (const [index, topic] of ["", "   ", undefined].entries()) {
+      const id = insertType(db, `No topic ${index}`);
+      const base = bookingPayload(id, starts[index]);
+      const payload = topic === undefined ? base : { ...base, topic };
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/bookings",
+        payload,
+      });
+      expect(response.statusCode).toBe(201);
+      expect(response.json().topic ?? null).toBeNull();
+
+      const row = db
+        .prepare("SELECT topic FROM bookings WHERE meeting_type_id = ?")
+        .get(id) as { topic: string | null };
+      expect(row).toEqual({ topic: null });
+    }
+  });
+
+  it("rejects topic longer than 120 chars after trim and non-string topic", async () => {
+    const { app, db } = track(setup());
+    const id = insertType(db, "Bad topic");
+
+    const tooLong = await app.inject({
+      method: "POST",
+      url: "/api/bookings",
+      payload: { ...bookingPayload(id), topic: ` ${"a".repeat(121)} ` },
+    });
+    expect(tooLong.statusCode).toBe(422);
+    expect(tooLong.json().code).toBe("validation_error");
+    expect(tooLong.json().fieldErrors).toEqual([
+      { field: "topic", message: "Topic must be at most 120 characters" },
+    ]);
+
+    const nonString = await app.inject({
+      method: "POST",
+      url: "/api/bookings",
+      payload: { ...bookingPayload(id), topic: 123 },
+    });
+    expect(nonString.statusCode).toBe(422);
+    expect(nonString.json().code).toBe("validation_error");
+    expect(nonString.json().fieldErrors).toEqual([
+      { field: "topic", message: "Topic must be a string" },
+    ]);
+
+    expect(db.prepare("SELECT COUNT(*) AS count FROM bookings").get()).toEqual({
+      count: 0,
+    });
+  });
+
+  it("keeps slot_taken conflict when topic is supplied and creates no booking", async () => {
+    const { app, db } = track(setup());
+    const id = insertType(db, "Conflict topic");
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/bookings",
+      payload: { ...bookingPayload(id), topic: "Первый" },
+    });
+    expect(first.statusCode).toBe(201);
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/bookings",
+      payload: {
+        ...bookingPayload(id),
+        guestName: "Другой",
+        topic: "Второй",
+      },
+    });
+    expect(second.statusCode).toBe(409);
+    expect(second.json().code).toBe("slot_taken");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM bookings").get()).toEqual({
+      count: 1,
+    });
+  });
 });

@@ -55,6 +55,7 @@ describe("AdminPage", () => {
       guestName: "First",
       guestEmail: "first@example.com",
       comment: null,
+      topic: null,
       createdAt: "2026-11-16T05:00:00.000Z",
       meetingType: {
         id: 1,

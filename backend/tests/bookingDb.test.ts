@@ -26,7 +26,7 @@ describe("bookings schema", () => {
 
     expect(
       db.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get(),
-    ).toEqual({ count: 3 });
+    ).toEqual({ count: 4 });
     const objects = db
       .prepare(
         "SELECT name, type FROM sqlite_master WHERE name LIKE 'idx_bookings%' OR name LIKE 'bookings_no_overlap%' ORDER BY name",
@@ -38,6 +38,12 @@ describe("bookings schema", () => {
       { name: "idx_bookings_meeting_type", type: "index" },
       { name: "idx_bookings_start_end", type: "index" },
     ]);
+    expect(
+      db
+        .prepare("PRAGMA table_info(bookings)")
+        .all()
+        .some((column) => (column as { name: string }).name === "topic"),
+    ).toBe(true);
     expect(db.pragma("foreign_keys", { simple: true })).toBe(1);
     expect(db.pragma("busy_timeout", { simple: true })).toBe(5000);
     db.close();

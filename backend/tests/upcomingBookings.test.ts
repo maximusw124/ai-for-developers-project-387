@@ -24,12 +24,13 @@ function insertBooking(
   end: string,
   guestName: string,
   comment: string | null = null,
+  topic: string | null = null,
 ): number {
   const info = db
     .prepare(
       `INSERT INTO bookings
-       (meeting_type_id, start_ms, end_ms, guest_name, guest_email, comment, created_at_ms)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (meeting_type_id, start_ms, end_ms, guest_name, guest_email, comment, topic, created_at_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       meetingTypeId,
@@ -38,6 +39,7 @@ function insertBooking(
       guestName,
       `${guestName.toLowerCase()}@example.com`,
       comment,
+      topic,
       NOW,
     );
   return Number(info.lastInsertRowid);
@@ -86,6 +88,7 @@ describe("List upcoming bookings API", () => {
       "2026-11-16T07:00:00.000Z",
       "Будущий",
       "Вопрос про тариф",
+      "План запуска",
     );
     const archivedBookingId = insertBooking(
       db,
@@ -130,6 +133,7 @@ describe("List upcoming bookings API", () => {
         guestName: "Сейчас",
         guestEmail: "сейчас@example.com",
         comment: null,
+        topic: null,
         createdAt: new Date(NOW).toISOString(),
         meetingType: {
           id: activeId,
@@ -145,6 +149,7 @@ describe("List upcoming bookings API", () => {
         guestName: "Будущий",
         guestEmail: "будущий@example.com",
         comment: "Вопрос про тариф",
+        topic: "План запуска",
         createdAt: new Date(NOW).toISOString(),
         meetingType: {
           id: activeId,
@@ -160,6 +165,7 @@ describe("List upcoming bookings API", () => {
         guestName: "Архивный",
         guestEmail: "архивный@example.com",
         comment: null,
+        topic: null,
         createdAt: new Date(NOW).toISOString(),
         meetingType: {
           id: archivedId,

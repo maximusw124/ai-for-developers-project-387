@@ -170,6 +170,7 @@ type ValidBookingBody = {
   guestName: string;
   guestEmail: string;
   comment?: string;
+  topic?: string | null;
 };
 
 type BookingOutcome =
@@ -279,13 +280,33 @@ function validateBookingBody(
     }
   }
 
+  let topic: string | null | undefined;
+  if (body.topic !== undefined) {
+    if (typeof body.topic !== "string") {
+      fieldErrors.push({
+        field: "topic",
+        message: "Topic must be a string",
+      });
+    } else {
+      const trimmedTopic = body.topic.trim();
+      if (trimmedTopic.length > 120) {
+        fieldErrors.push({
+          field: "topic",
+          message: "Topic must be at most 120 characters",
+        });
+      } else {
+        topic = trimmedTopic.length === 0 ? null : trimmedTopic;
+      }
+    }
+  }
+
   if (fieldErrors.length > 0) {
     return { ok: false, fieldErrors };
   }
 
   return {
     ok: true,
-    value: { startMs, guestName, guestEmail, comment },
+    value: { startMs, guestName, guestEmail, comment, topic },
   };
 }
 
@@ -449,8 +470,8 @@ export function buildApp({
           try {
             db.prepare(
               `INSERT INTO bookings
-              (meeting_type_id, start_ms, end_ms, guest_name, guest_email, comment, created_at_ms)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              (meeting_type_id, start_ms, end_ms, guest_name, guest_email, comment, topic, created_at_ms)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             ).run(
               meetingTypeId,
               startMs,
@@ -458,6 +479,7 @@ export function buildApp({
               parsed.value.guestName,
               parsed.value.guestEmail,
               parsed.value.comment ?? null,
+              parsed.value.topic ?? null,
               nowMs,
             );
           } catch (error) {
@@ -484,6 +506,9 @@ export function buildApp({
               guestEmail: parsed.value.guestEmail,
               ...(parsed.value.comment !== undefined
                 ? { comment: parsed.value.comment }
+                : {}),
+              ...(parsed.value.topic !== undefined
+                ? { topic: parsed.value.topic }
                 : {}),
               createdAt: new Date(nowMs).toISOString(),
             },
@@ -517,7 +542,7 @@ export function buildApp({
           .prepare(
             `SELECT b.id, b.start_ms AS startMs, b.end_ms AS endMs,
                     b.guest_name AS guestName, b.guest_email AS guestEmail,
-                    b.comment, b.created_at_ms AS createdAtMs,
+                    b.comment, b.topic, b.created_at_ms AS createdAtMs,
                     mt.id AS meetingTypeId, mt.name AS meetingTypeName,
                     mt.duration_min AS meetingTypeDurationMin,
                     mt.archived_at_ms AS archivedAtMs
@@ -533,6 +558,7 @@ export function buildApp({
           guestName: string;
           guestEmail: string;
           comment: string | null;
+          topic: string | null;
           createdAtMs: number;
           meetingTypeId: number;
           meetingTypeName: string;
@@ -548,6 +574,7 @@ export function buildApp({
             guestName: row.guestName,
             guestEmail: row.guestEmail,
             comment: row.comment,
+            topic: row.topic,
             createdAt: new Date(row.createdAtMs).toISOString(),
             meetingType: {
               id: row.meetingTypeId,

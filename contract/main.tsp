@@ -75,6 +75,7 @@ model CreateBookingRequest {
   guestName: string;
   guestEmail: string;
   comment?: string;
+  topic?: string;
 }
 
 model BookingConfirmation {
@@ -86,6 +87,7 @@ model BookingConfirmation {
   guestName: string;
   guestEmail: string;
   comment?: string;
+  topic?: string | null;
   createdAt: utcDateTime;
 }
 
@@ -103,6 +105,7 @@ model UpcomingBooking {
   guestName: string;
   guestEmail: string;
   comment: string | null;
+  topic: string | null;
   createdAt: utcDateTime;
   meetingType: UpcomingMeetingType;
 }

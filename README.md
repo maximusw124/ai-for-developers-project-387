@@ -90,7 +90,7 @@ npm run e2e     # сквозные Playwright-тесты (эквивалент m
 
 Воркфлоу `.github/workflows/auto-review.yml` запускается только на `pull_request` (`opened`, `synchronize`, `reopened`) и готовит ревью отдельно от выполнения кода PR.
 
-- **Допуск:** PR из этого же репозитория (`head.repo.full_name == github.repository`, не fork), автор OWNER, MEMBER или COLLABORATOR, не бот. PR из fork и комментарии ботов не запускают ревью.
+- **Допуск:** PR из этого же репозитория (`head.repo.full_name == github.repository`, не fork), автор OWNER, MEMBER или COLLABORATOR, либо доверенное приложение `opencode-agent[bot]` / `github-actions[bot]`. У ботов `author_association` обычно `NONE`, поэтому они допускаются по логину; PR из fork и другие боты ревью не запускают.
 - **Разделение событий:** `issue_comment` и `pull_request_review_comment` здесь не используются — они остаются в `.github/workflows/opencode.yml` и срабатывают на комментарии с `/oc` или `/opencode`. Группы `concurrency` разные: `opencode-<n>` и `auto-review-<n>`, поэтому автоматическое ревью и ручной вызов агента не отменяют друг друга.
 - **Подготовка:** обычный OpenCode CLI (`npm install --global @opencode/cli@2.3.2`, затем `opencode run --standalone --model opencode/big-pickle --file REVIEW.md`). Ключ берётся из секрета `OPENCODE_API_KEY`. Агент читает `REVIEW.md`, спецификацию, тикеты через `gh`, diff (`git diff $BASE_SHA $HEAD_SHA`) и результаты CI для head SHA через check-runs/statuses/actions; код репозитория не меняет, коммиты, ветки, PR, метки и комментарии не создаёт.
 - **Публикация:** отдельная джоба с `gh pr comment ... --body-file -`. Токен с правом `pull-requests: write` доступен только ей; в джобе ревью у агента токен только для чтения. В `checkout` указано `persist-credentials: false`, OIDC (`id-token`) не запрашивается; после ревью проверяется, что рабочая директория осталась чистой.
@@ -170,6 +170,8 @@ npm run e2e     # сквозные Playwright-тесты (эквивалент m
 ## Релизы
 
 Релизный процесс, настройка `release-please`, защита `main` и ротация `RELEASE_PLEASE_TOKEN` описаны в [docs/release-process.md](docs/release-process.md).
+
+Если workflow `release-please` падает с `release-please failed: Input required and not supplied: token`, значит секрет `RELEASE_PLEASE_TOKEN` в настройках репозитория отсутствует или пуст: создайте или обновите его по инструкции в [docs/release-process.md](docs/release-process.md). Это настройка репозитория, а не код воркфлоу.
 
 ---
 

@@ -276,6 +276,26 @@ describe("Create booking API", () => {
     }
   });
 
+  it("accepts a topic at exactly 120 characters after trim", async () => {
+    const { app, db } = track(setup());
+    const id = insertType(db, "Boundary topic");
+    const topic = "a".repeat(120);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/bookings",
+      payload: { ...bookingPayload(id), topic: `  ${topic}  ` },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().topic).toBe(topic);
+
+    const stored = db
+      .prepare("SELECT topic FROM bookings WHERE meeting_type_id = ?")
+      .get(id) as { topic: string | null };
+    expect(stored).toEqual({ topic });
+  });
+
   it("rejects topic longer than 120 chars after trim and non-string topic", async () => {
     const { app, db } = track(setup());
     const id = insertType(db, "Bad topic");

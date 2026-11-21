@@ -209,6 +209,42 @@ function isOverlapError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("booking_overlap");
 }
 
+type OptionalTextField = "comment" | "topic";
+
+function validateOptionalText(
+  body: Record<string, unknown>,
+  field: OptionalTextField,
+  maxLength: number,
+  options: { measureAfterTrim?: boolean } = {},
+): ValidationResult<string | undefined> {
+  const raw = body[field];
+  if (raw === undefined) return { ok: true, value: undefined };
+
+  const label = field === "comment" ? "Comment" : "Topic";
+  if (typeof raw !== "string") {
+    return {
+      ok: false,
+      fieldErrors: [{ field, message: `${label} must be a string` }],
+    };
+  }
+
+  const trimmed = raw.trim();
+  const measured = options.measureAfterTrim ? trimmed : raw;
+  if (measured.length > maxLength) {
+    return {
+      ok: false,
+      fieldErrors: [
+        {
+          field,
+          message: `${label} must be at most ${maxLength} characters`,
+        },
+      ],
+    };
+  }
+
+  return { ok: true, value: trimmed };
+}
+
 function validateBookingBody(
   body: unknown,
 ): ValidationResult<ValidBookingBody> {
@@ -263,50 +299,39 @@ function validateBookingBody(
     }
   }
 
-  let comment: string | undefined;
-  if (body.comment !== undefined) {
-    if (typeof body.comment !== "string") {
-      fieldErrors.push({
-        field: "comment",
-        message: "Comment must be a string",
-      });
-    } else if (body.comment.length > 2000) {
-      fieldErrors.push({
-        field: "comment",
-        message: "Comment must be at most 2000 characters",
-      });
-    } else {
-      comment = body.comment.trim();
-    }
+  const comment = validateOptionalText(body, "comment", 2000);
+  if (!comment.ok) {
+    fieldErrors.push(...comment.fieldErrors);
   }
 
-  let topic: string | null | undefined;
-  if (body.topic !== undefined) {
-    if (typeof body.topic !== "string") {
-      fieldErrors.push({
-        field: "topic",
-        message: "Topic must be a string",
-      });
-    } else {
-      const trimmedTopic = body.topic.trim();
-      if (trimmedTopic.length > 120) {
-        fieldErrors.push({
-          field: "topic",
-          message: "Topic must be at most 120 characters",
-        });
-      } else {
-        topic = trimmedTopic.length === 0 ? null : trimmedTopic;
-      }
-    }
+  const topic = validateOptionalText(body, "topic", 120, {
+    measureAfterTrim: true,
+  });
+  if (!topic.ok) {
+    fieldErrors.push(...topic.fieldErrors);
   }
 
   if (fieldErrors.length > 0) {
     return { ok: false, fieldErrors };
   }
 
+  const topicValue = topic.ok
+    ? topic.value === undefined
+      ? undefined
+      : topic.value.length === 0
+        ? null
+        : topic.value
+    : undefined;
+
   return {
     ok: true,
-    value: { startMs, guestName, guestEmail, comment, topic },
+    value: {
+      startMs,
+      guestName,
+      guestEmail,
+      comment: comment.ok ? comment.value : undefined,
+      topic: topicValue,
+    },
   };
 }
 

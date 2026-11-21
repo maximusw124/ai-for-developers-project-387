@@ -658,6 +658,7 @@ export function AdminPage() {
                                 end: booking.end,
                               })}
                             </span>
+                            <span>Гость: {booking.guestName}</span>
                             {booking.topic?.trim() ? (
                               <span className="badge booking-card__topic">
                                 {booking.topic}

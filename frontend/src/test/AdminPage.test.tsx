@@ -391,6 +391,7 @@ describe("AdminPage", () => {
       "badge",
       "booking-card__topic",
     );
+    expect(within(heading).getByText("Гость: First")).toBeInTheDocument();
     expect(card.querySelector(".booking-card__details")).not.toHaveTextContent(
       topic,
     );

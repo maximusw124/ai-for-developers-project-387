@@ -152,7 +152,7 @@ jobs:
     needs: guard
     if: needs.guard.outputs.allowed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     permissions:
       contents: read
       issues: write

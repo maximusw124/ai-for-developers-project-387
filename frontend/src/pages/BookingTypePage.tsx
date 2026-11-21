@@ -28,6 +28,7 @@ type LoadState =
 type Contacts = {
   guestName: string;
   guestEmail: string;
+  topic: string;
   comment: string;
 };
 
@@ -56,6 +57,7 @@ export function BookingTypePage() {
   const [contacts, setContacts] = useState<Contacts>({
     guestName: "",
     guestEmail: "",
+    topic: "",
     comment: "",
   });
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
@@ -143,6 +145,7 @@ export function BookingTypePage() {
           guestName: contacts.guestName,
           guestEmail: contacts.guestEmail,
           ...(contacts.comment ? { comment: contacts.comment } : {}),
+          ...(contacts.topic.trim() ? { topic: contacts.topic.trim() } : {}),
         },
       });
 
@@ -294,6 +297,32 @@ export function BookingTypePage() {
                             id="guestEmail-error"
                           >
                             {errorFor("guestEmail")?.message}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="booking-form__field">
+                        <label htmlFor="topic">
+                          Тема разговора (необязательно)
+                        </label>
+                        <input
+                          id="topic"
+                          name="topic"
+                          value={contacts.topic}
+                          maxLength={120}
+                          aria-invalid={Boolean(errorFor("topic"))}
+                          aria-describedby={
+                            errorFor("topic") ? "topic-error" : undefined
+                          }
+                          onChange={(event) =>
+                            setContacts({
+                              ...contacts,
+                              topic: event.target.value,
+                            })
+                          }
+                        />
+                        {errorFor("topic") ? (
+                          <p className="booking-form__error" id="topic-error">
+                            {errorFor("topic")?.message}
                           </p>
                         ) : null}
                       </div>

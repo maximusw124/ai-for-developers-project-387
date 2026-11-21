@@ -180,6 +180,17 @@
   gap: 8px;
   align-items: baseline;
 }
+.booking-card__topic {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: left;
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
 .booking-card__details {
   display: grid;
   gap: 4px 12px;

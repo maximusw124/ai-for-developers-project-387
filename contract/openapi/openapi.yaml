@@ -483,6 +483,10 @@ components:
           type: string
         comment:
           type: string
+        topic:
+          anyOf:
+            - type: string
+            - type: 'null'
         createdAt:
           type: string
           format: date-time
@@ -505,6 +509,8 @@ components:
         guestEmail:
           type: string
         comment:
+          type: string
+        topic:
           type: string
     CreateMeetingTypeRequest:
       type: object
@@ -602,6 +608,7 @@ components:
         - guestName
         - guestEmail
         - comment
+        - topic
         - createdAt
         - meetingType
       properties:
@@ -619,6 +626,10 @@ components:
         guestEmail:
           type: string
         comment:
+          anyOf:
+            - type: string
+            - type: 'null'
+        topic:
           anyOf:
             - type: string
             - type: 'null'

@@ -170,6 +170,7 @@ type ValidBookingBody = {
   guestName: string;
   guestEmail: string;
   comment?: string;
+  topic?: string | null;
 };
 
 type BookingOutcome =
@@ -206,6 +207,42 @@ function isSqliteBusy(error: unknown): boolean {
 
 function isOverlapError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("booking_overlap");
+}
+
+type OptionalTextField = "comment" | "topic";
+
+function validateOptionalText(
+  body: Record<string, unknown>,
+  field: OptionalTextField,
+  maxLength: number,
+  options: { measureAfterTrim?: boolean } = {},
+): ValidationResult<string | undefined> {
+  const raw = body[field];
+  if (raw === undefined) return { ok: true, value: undefined };
+
+  const label = field === "comment" ? "Comment" : "Topic";
+  if (typeof raw !== "string") {
+    return {
+      ok: false,
+      fieldErrors: [{ field, message: `${label} must be a string` }],
+    };
+  }
+
+  const trimmed = raw.trim();
+  const measured = options.measureAfterTrim ? trimmed : raw;
+  if (measured.length > maxLength) {
+    return {
+      ok: false,
+      fieldErrors: [
+        {
+          field,
+          message: `${label} must be at most ${maxLength} characters`,
+        },
+      ],
+    };
+  }
+
+  return { ok: true, value: trimmed };
 }
 
 function validateBookingBody(
@@ -262,30 +299,39 @@ function validateBookingBody(
     }
   }
 
-  let comment: string | undefined;
-  if (body.comment !== undefined) {
-    if (typeof body.comment !== "string") {
-      fieldErrors.push({
-        field: "comment",
-        message: "Comment must be a string",
-      });
-    } else if (body.comment.length > 2000) {
-      fieldErrors.push({
-        field: "comment",
-        message: "Comment must be at most 2000 characters",
-      });
-    } else {
-      comment = body.comment.trim();
-    }
+  const comment = validateOptionalText(body, "comment", 2000);
+  if (!comment.ok) {
+    fieldErrors.push(...comment.fieldErrors);
+  }
+
+  const topic = validateOptionalText(body, "topic", 120, {
+    measureAfterTrim: true,
+  });
+  if (!topic.ok) {
+    fieldErrors.push(...topic.fieldErrors);
   }
 
   if (fieldErrors.length > 0) {
     return { ok: false, fieldErrors };
   }
 
+  const topicValue = topic.ok
+    ? topic.value === undefined
+      ? undefined
+      : topic.value.length === 0
+        ? null
+        : topic.value
+    : undefined;
+
   return {
     ok: true,
-    value: { startMs, guestName, guestEmail, comment },
+    value: {
+      startMs,
+      guestName,
+      guestEmail,
+      comment: comment.ok ? comment.value : undefined,
+      topic: topicValue,
+    },
   };
 }
 
@@ -449,8 +495,8 @@ export function buildApp({
           try {
             db.prepare(
               `INSERT INTO bookings
-              (meeting_type_id, start_ms, end_ms, guest_name, guest_email, comment, created_at_ms)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              (meeting_type_id, start_ms, end_ms, guest_name, guest_email, comment, topic, created_at_ms)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             ).run(
               meetingTypeId,
               startMs,
@@ -458,6 +504,7 @@ export function buildApp({
               parsed.value.guestName,
               parsed.value.guestEmail,
               parsed.value.comment ?? null,
+              parsed.value.topic ?? null,
               nowMs,
             );
           } catch (error) {
@@ -484,6 +531,9 @@ export function buildApp({
               guestEmail: parsed.value.guestEmail,
               ...(parsed.value.comment !== undefined
                 ? { comment: parsed.value.comment }
+                : {}),
+              ...(parsed.value.topic !== undefined
+                ? { topic: parsed.value.topic }
                 : {}),
               createdAt: new Date(nowMs).toISOString(),
             },
@@ -517,7 +567,7 @@ export function buildApp({
           .prepare(
             `SELECT b.id, b.start_ms AS startMs, b.end_ms AS endMs,
                     b.guest_name AS guestName, b.guest_email AS guestEmail,
-                    b.comment, b.created_at_ms AS createdAtMs,
+                    b.comment, b.topic, b.created_at_ms AS createdAtMs,
                     mt.id AS meetingTypeId, mt.name AS meetingTypeName,
                     mt.duration_min AS meetingTypeDurationMin,
                     mt.archived_at_ms AS archivedAtMs
@@ -533,6 +583,7 @@ export function buildApp({
           guestName: string;
           guestEmail: string;
           comment: string | null;
+          topic: string | null;
           createdAtMs: number;
           meetingTypeId: number;
           meetingTypeName: string;
@@ -548,6 +599,7 @@ export function buildApp({
             guestName: row.guestName,
             guestEmail: row.guestEmail,
             comment: row.comment,
+            topic: row.topic,
             createdAt: new Date(row.createdAtMs).toISOString(),
             meetingType: {
               id: row.meetingTypeId,

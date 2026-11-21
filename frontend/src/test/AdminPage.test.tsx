@@ -55,6 +55,7 @@ describe("AdminPage", () => {
       guestName: "First",
       guestEmail: "first@example.com",
       comment: null,
+      topic: null,
       createdAt: "2026-11-16T05:00:00.000Z",
       meetingType: {
         id: 1,
@@ -370,6 +371,56 @@ describe("AdminPage", () => {
     ).toHaveAttribute("href", "mailto:first@example.com");
   });
 
+  it("shows a talk topic as a badge in the upcoming card heading", async () => {
+    const topic = "Обсудить архитектуру и сроки";
+    api.listUpcomingBookings.mockResolvedValue({
+      data: [booking({ topic })],
+      error: undefined,
+    });
+    renderWithRouter(<AdminPage />, { initialPath: "/admin" });
+
+    const section = upcomingSection();
+    const meetingType = await within(section).findByText("Consultation");
+    const heading = meetingType.closest(
+      ".booking-card__heading",
+    ) as HTMLElement;
+    const card = meetingType.closest(".booking-card") as HTMLElement;
+
+    expect(heading).toHaveTextContent(topic);
+    expect(within(heading).getByText(topic)).toHaveClass(
+      "badge",
+      "booking-card__topic",
+    );
+    expect(within(heading).getByText("Гость: First")).toBeInTheDocument();
+    expect(card.querySelector(".booking-card__details")).not.toHaveTextContent(
+      topic,
+    );
+  });
+
+  it("omits the topic badge when a booking has no topic, even with a comment", async () => {
+    const comment = "Подробности вместо темы";
+    api.listUpcomingBookings.mockResolvedValue({
+      data: [
+        booking({ id: 1, comment }),
+        booking({ id: 2, guestName: "Second", topic: "", comment }),
+        booking({ id: 3, guestName: "Third", topic: "   ", comment }),
+      ],
+      error: undefined,
+    });
+    renderWithRouter(<AdminPage />, { initialPath: "/admin" });
+
+    const section = upcomingSection();
+    await within(section).findByText("Third");
+    expect(section.querySelectorAll(".booking-card__topic")).toHaveLength(0);
+    expect(within(section).queryByText(/без темы/i)).not.toBeInTheDocument();
+    expect(within(section).getAllByText(comment)).toHaveLength(3);
+    for (const card of section.querySelectorAll(".booking-card")) {
+      expect(
+        card.querySelector(".booking-card__heading"),
+      ).not.toHaveTextContent(comment);
+    }
+  });
+
   it("marks a meeting that is in progress and not a future one", async () => {
     vi.spyOn(Date, "now").mockReturnValue(NOW);
     api.listUpcomingBookings.mockResolvedValue({
@@ -395,6 +446,51 @@ describe("AdminPage", () => {
     expect(await within(section).findByText("Ongoing")).toBeInTheDocument();
     expect(within(section).getByText("Future")).toBeInTheDocument();
     expect(within(section).getAllByText("Сейчас")).toHaveLength(1);
+  });
+
+  it("keeps markers, comment and mailto intact alongside a long topic", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    const longTopic = "Обсудить архитектуру, сроки и риски. "
+      .repeat(4)
+      .slice(0, 120);
+    api.listUpcomingBookings.mockResolvedValue({
+      data: [
+        booking({
+          start: new Date(NOW - 5 * 60_000).toISOString(),
+          end: new Date(NOW + 25 * 60_000).toISOString(),
+          topic: longTopic,
+          comment: "Комментарий гостя",
+          meetingType: {
+            id: 2,
+            name: "Archived meeting",
+            durationMin: 60,
+            archived: true,
+          },
+        }),
+      ],
+      error: undefined,
+    });
+    renderWithRouter(<AdminPage />, { initialPath: "/admin" });
+
+    const section = upcomingSection();
+    const meetingType = await within(section).findByText("Archived meeting");
+    const heading = meetingType.closest(
+      ".booking-card__heading",
+    ) as HTMLElement;
+    const card = meetingType.closest(".booking-card") as HTMLElement;
+    const details = card.querySelector(".booking-card__details") as HTMLElement;
+
+    const badge = heading.querySelector(".booking-card__topic") as HTMLElement;
+    expect(badge).toHaveClass("badge", "booking-card__topic");
+    expect(badge).toHaveTextContent(longTopic.trim());
+    expect(heading).toHaveTextContent("Сейчас");
+    expect(heading).toHaveTextContent("Тип в архиве");
+    expect(within(details).getByText("Комментарий")).toBeInTheDocument();
+    expect(within(details).getByText("Комментарий гостя")).toBeInTheDocument();
+    expect(
+      within(details).getByRole("link", { name: "first@example.com" }),
+    ).toHaveAttribute("href", "mailto:first@example.com");
+    expect(details).not.toHaveTextContent(longTopic.trim());
   });
 
   it("refreshes upcoming bookings manually without polling", async () => {

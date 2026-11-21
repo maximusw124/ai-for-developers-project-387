@@ -47,6 +47,8 @@ npm run check   # контракт, линтер, типы, сборка и те
 npm run e2e     # сквозные Playwright-тесты (эквивалент mise run e2e)
 ```
 
+Заголовки коммитов и PR обязаны следовать **Conventional Commits** (правило в `AGENTS.md`); в PR его дополнительно проверяет workflow `PR title` (`.github/workflows/pr-title.yml`).
+
 ### Политика карантина нестабильных тестов
 
 - Упавший в PR тест не перезапускается ради зелёного статуса; ретраи в PR запрещены.
@@ -75,6 +77,20 @@ npm run e2e     # сквозные Playwright-тесты (эквивалент m
 - **Параллельность:** `concurrency` группируется по номеру Issue (`auto-triage-${{ github.event.issue.number }}`), `cancel-in-progress: false` — уже идущий разбор не отменяется.
 - **Таймаут:** 15 минут на джобу.
 - **Границы агента:** изучает код и документацию, оставляет комментарий с предварительным выводом и уточняющими вопросами, обновляет метки трекера; код не меняет, коммиты, ветки и PR не создаёт.
+
+### Независимое авторевью PR
+
+Воркфлоу `.github/workflows/auto-review.yml` запускается только на `pull_request` (`opened`, `synchronize`, `reopened`) и готовит ревью отдельно от выполнения кода PR.
+
+- **Допуск:** PR из этого же репозитория (`head.repo.full_name == github.repository`, не fork), автор OWNER, MEMBER или COLLABORATOR, не бот. PR из fork и комментарии ботов не запускают ревью.
+- **Разделение событий:** `issue_comment` и `pull_request_review_comment` здесь не используются. Команды `/oc` и `/opencode` остаются в `.github/workflows/opencode.yml` и срабатывают только на новом комментарии; `pull_request_review_comment` не запускает ни один воркфлоу. Группы `concurrency` разные: `opencode-<n>` и `auto-review-<n>`, поэтому ревью и ручной вызов агента не отменяют друг друга.
+- **Подготовка:** обычный OpenCode CLI (`npm install --global @opencode/cli@2.3.2`, затем `opencode run --standalone --model opencode/big-pickle --file REVIEW.md`). Ключ берётся из секрета `OPENCODE_API_KEY`. Агент читает `REVIEW.md`, спецификацию, тикеты через `gh`, diff (`git diff $BASE_SHA $HEAD_SHA`) и результаты CI для head SHA через check-runs/statuses/actions; код репозитория не меняет, коммиты, ветки, PR, метки и комментарии не создаёт.
+- **Публикация:** отдельная джоба с `gh pr comment ... --body-file -`. Токен с правом `pull-requests: write` доступен только ей; в джобе ревью у агента токен только для чтения. В `checkout` указано `persist-credentials: false`, OIDC (`id-token`) не запрашивается; после ревью проверяется, что рабочая директория осталась чистой.
+- **Права уровня воркфлоу:** `contents: read`, `issues: read`, `actions: read`, `checks: read`, `statuses: read`, `pull-requests: write`. У джобы ревью нет права на запись PR, у джобы публикации — только `pull-requests: write`.
+- **Устаревшие ревью:** `concurrency` по номеру PR с `cancel-in-progress: true` отменяет предыдущий запуск того же PR. Таймауты: 15 минут на подготовку, 5 минут на публикацию.
+- **Критерии и формат:** [REVIEW.md](REVIEW.md). Комментарий содержит файл, строку, условие ошибки и последствие для каждого подтверждённого дефекта; если дефектов нет — явную строку `Подтверждённых дефектов по REVIEW.md не найдено.`. Вывод линтера (Biome) в ревью не дублируется — его проверяет `mise run check`.
+
+Шаблон `.github/pull_request_template.md` требует ссылки на issue/спецификацию/тикеты/согласование и `Closes #N`, перечень запущенных команд со ссылками на прогоны и проверенный SHA, оценку риска по последствиям ошибки и способ отката, включая поиск данных при изменении миграций.
 
 ## 🚀 Пользовательский сценарий (User Journey)
 

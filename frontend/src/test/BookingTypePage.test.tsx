@@ -75,6 +75,12 @@ function fillGuest() {
   });
 }
 
+function fillTopic(value: string) {
+  fireEvent.change(screen.getByLabelText("Тема разговора (необязательно)"), {
+    target: { value },
+  });
+}
+
 describe("BookingTypePage", () => {
   beforeEach(() => {
     getAvailability.mockReset();
@@ -145,6 +151,57 @@ describe("BookingTypePage", () => {
     ).toHaveAttribute("href", "/book");
   });
 
+  it("keeps the confirmation screen unchanged when a topic is submitted", async () => {
+    createBooking.mockResolvedValue({
+      data: { ...confirmation, topic: "Обсуждение договора" },
+      error: undefined,
+    });
+    renderBookingType("/book/1");
+    await selectSlot();
+    fillGuest();
+    fillTopic("Обсуждение договора");
+
+    fireEvent.click(screen.getByRole("button", { name: "Подтвердить запись" }));
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "Встреча забронирована",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Обсуждение договора")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Тема разговора/)).not.toBeInTheDocument();
+    expect(screen.getByText("Комментарий")).toBeInTheDocument();
+    expect(screen.getByText("Вопрос")).toBeInTheDocument();
+  });
+
+  it("sends a trimmed topic in the booking request", async () => {
+    createBooking.mockResolvedValue({ data: confirmation, error: undefined });
+    renderBookingType("/book/1");
+    await selectSlot();
+    fillGuest();
+    fillTopic("  Обсуждение договора  ");
+
+    fireEvent.click(screen.getByRole("button", { name: "Подтвердить запись" }));
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "Встреча забронирована",
+      }),
+    ).toBeInTheDocument();
+    expect(createBooking).toHaveBeenCalledWith({
+      body: {
+        meetingTypeId: 1,
+        start: slot.start,
+        guestName: "Анна",
+        guestEmail: "anna@example.com",
+        comment: "Вопрос",
+        topic: "Обсуждение договора",
+      },
+    });
+  });
+
   it("keeps contacts, clears the slot and refreshes availability after a conflict", async () => {
     createBooking.mockResolvedValue({
       data: undefined,
@@ -177,6 +234,70 @@ describe("BookingTypePage", () => {
         screen.queryByRole("button", { name: /09:00–09:30/ }),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  it("caps the topic input at 120 characters", async () => {
+    renderBookingType("/book/1");
+    await selectSlot();
+
+    expect(
+      screen.getByLabelText("Тема разговора (необязательно)"),
+    ).toHaveAttribute("maxlength", "120");
+  });
+
+  it("shows a server topic error next to the topic field", async () => {
+    createBooking.mockResolvedValue({
+      data: undefined,
+      error: {
+        code: "validation_error",
+        message: "Validation failed",
+        fieldErrors: [
+          { field: "topic", message: "Topic must be at most 120 characters" },
+        ],
+      },
+    });
+    renderBookingType("/book/1");
+    await selectSlot();
+    fillGuest();
+    fillTopic("Слишком длинная тема");
+
+    fireEvent.click(screen.getByRole("button", { name: "Подтвердить запись" }));
+
+    const error = await screen.findByText(
+      "Topic must be at most 120 characters",
+    );
+    expect(error).toHaveClass("booking-form__error");
+    const topicInput = screen.getByLabelText("Тема разговора (необязательно)");
+    expect(topicInput).toHaveAttribute("aria-invalid", "true");
+    expect(topicInput).toHaveAttribute("aria-describedby", "topic-error");
+    expect(screen.getByRole("status")).toHaveTextContent("Выбран слот");
+    expect(getAvailability).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not send a whitespace-only topic", async () => {
+    createBooking.mockResolvedValue({ data: confirmation, error: undefined });
+    renderBookingType("/book/1");
+    await selectSlot();
+    fillGuest();
+    fillTopic("   ");
+
+    fireEvent.click(screen.getByRole("button", { name: "Подтвердить запись" }));
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "Встреча забронирована",
+      }),
+    ).toBeInTheDocument();
+    expect(createBooking).toHaveBeenCalledWith({
+      body: {
+        meetingTypeId: 1,
+        start: slot.start,
+        guestName: "Анна",
+        guestEmail: "anna@example.com",
+        comment: "Вопрос",
+      },
+    });
   });
 
   it("shows server field errors for invalid guest data", async () => {

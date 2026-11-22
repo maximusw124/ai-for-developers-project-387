@@ -10,6 +10,12 @@
     "indentStyle": "space",
     "indentWidth": 2
   },
+  "overrides": [
+    {
+      "include": ["package.json"],
+      "formatter": { "enabled": false }
+    }
+  ],
   "files": {
     "ignore": [
       "node_modules",

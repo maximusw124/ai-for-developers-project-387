@@ -38,8 +38,9 @@ test("release-please config has one root package and node release type", () => {
   assert.equal(pkg.draft, false);
   assert.ok(!("bootstrap-sha" in pkg));
 
-  assert.deepEqual(manifest, { ".": "0.0.0" });
-  assert.equal(packageJson.version, "0.0.0");
+  assert.deepEqual(Object.keys(manifest), ["."]);
+  assert.equal(manifest["."], packageJson.version);
+  assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
   assert.match(changelog, /^# Changelog/m);
 
   assert.deepEqual(

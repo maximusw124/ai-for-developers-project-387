@@ -11,7 +11,7 @@
 
 ## Токен и права
 
-`GITHUB_TOKEN` не подходит: созданный им релизный PR не запускает обычный CI. workflow `release-please.yml` использует отдельный секрет `RELEASE_PLEASE_TOKEN` — fine-grained PAT с доступом только к этому репозиторию и правами `contents: write` и `pull-requests: write`. В workflow явно заданы те же `permissions`.
+`GITHUB_TOKEN` не подходит: созданный им релизный PR не запускает обычный CI. workflow `release-please.yml` использует отдельный секрет `RELEASE_PLEASE_TOKEN` — fine-grained PAT с доступом только к этому репозиторию и правами `contents: write` и `pull-requests: write`. В workflow явно заданы те же `permissions`. Если секрет не создан, попытка запуска заканчивается ошибкой `release-please failed: Input required and not supplied: token`; fallback на `GITHUB_TOKEN` намеренно не используется.
 
 Токен имеет срок действия и ротируется:
 

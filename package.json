@@ -1,8 +1,12 @@
 {
   "name": "cal-clone",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
-  "workspaces": ["contract", "backend", "frontend"],
+  "workspaces": [
+    "contract",
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",

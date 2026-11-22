@@ -61,7 +61,8 @@ export default defineConfig({
   use: {
     baseURL: webUrl,
     timezoneId: browserTimezone,
-    trace: "retain-on-failure",
+    trace: "on",
+    screenshot: "on",
   },
   projects: allProjects.filter((project) =>
     selectedProjects.includes(project.name),

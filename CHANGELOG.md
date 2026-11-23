@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/maximusw124/ai-for-developers-project-387/compare/v1.0.0...v1.0.1) (2026-11-23)
+
+
+### Documentation
+
+* add personal notes on scheduled audit agent ([4034606](https://github.com/maximusw124/ai-for-developers-project-387/commit/4034606af6417c53a88e8d9cc3b91be085f3099e))
+* document scheduled audit workflow ([4cf1ebc](https://github.com/maximusw124/ai-for-developers-project-387/commit/4cf1ebce4a3f779f228c8ed11c9a35c4cbc75493))
+
 ## 1.0.0 (2026-11-22)
 
 
